@@ -1,25 +1,25 @@
 # World Layoffs: SQL Data Cleaning
 
-Progetto SQL dedicato alla pulizia e alla standardizzazione di un dataset reale sui licenziamenti globali (dal 2021 in poi). L'obiettivo è trasformare i dati grezzi (raw data) in un set di dati accurato e pronto per la fase di Exploratory Data Analysis (EDA).
+An SQL project focused on cleaning and standardizing a real-world dataset on global layoffs (from 2021 onwards). The objective is to transform raw data into an accurate dataset ready for Exploratory Data Analysis (EDA).
 
-La repository contiene sia il file iniziale (`layoffs.csv`) sia la versione finale pulita per il confronto diretto.
-
----
-
-## Struttura del Progetto
-
-Il processo si articola in 4 fasi principali, eseguite su una tabella di *staging* per preservare l'integrità dei dati originali:
-
-1. **Rimozione dei duplicati:** Identificazione e cancellazione dei record ripetuti.
-2. **Standardizzazione:** Correzione di refusi, spazi extra e formati strutturali.
-3. **Gestione valori nulli/vuoti:** Recupero logico dei dati mancanti o eliminazione dei record irrecuperabili.
-4. **Ottimizzazione:** Rimozione delle colonne e delle righe non utili all'analisi.
+The repository contains both the initial file (`layoffs.csv`) and the final cleaned version for direct comparison.
 
 ---
 
-## Pipeline di Pulizia (Query Principali)
+## Project Structure
 
-### 1. Creazione Tabella Staging
+The process consists of 4 main phases, executed on a staging table to preserve the integrity of the original data:
+
+1. **Duplicate removal:** Identifying and deleting repeated records.
+2. **Standardization:** Correcting typos, extra spaces, and structural formats.
+3. **Null/blank value management:** Logical recovery of missing data or removal of unrecoverable records.
+4. **Optimization:** Removing columns and rows that are not useful for the analysis.
+
+---
+
+## Cleaning Pipeline (Main Queries)
+
+### 1. Creating the Staging Table
 
 ```sql
 CREATE TABLE layoffs_staging
@@ -27,9 +27,9 @@ SELECT * FROM layoffs;
 
 ```
 
-### 2. Rimozione Duplicati
+### 2. Duplicate Removal
 
-Senza un ID univoco, i duplicati sono stati individuati tramite `ROW_NUMBER()` e `PARTITION BY` su tutte le colonne. I record con `row_num > 1` sono stati inseriti in una seconda tabella d'appoggio (`layoffs_staging2`) ed eliminati.
+Without a unique ID, duplicates were identified using `ROW_NUMBER()` and `PARTITION BY` across all columns. Records with `row_num > 1` were inserted into a second staging table (`layoffs_staging2`) and then deleted.
 
 ```sql
 WITH duplicates_cte AS (
@@ -44,11 +44,11 @@ SELECT * FROM duplicates_cte WHERE row_num > 1;
 
 ```
 
-### 3. Standardizzazione dei Testi e delle Date
+### 3. Text and Date Standardization
 
-* Rimozione spazi extra: `SET company = TRIM(company);`
-* Accorpamento categorie simili (es. da 'Cryptocurrency' a 'Crypto'): `SET industry = 'Crypto' WHERE industry LIKE 'Crypto%';`
-* Conversione della colonna data da testo (`TEXT`) a tipo appropriato (`DATE`):
+* Removing extra spaces: `SET company = TRIM(company);`
+* Grouping similar categories (e.g., from 'Cryptocurrency' to 'Crypto'): `SET industry = 'Crypto' WHERE industry LIKE 'Crypto%';`
+* Converting the date column from text (`TEXT`) to the appropriate type (`DATE`):
 
 ```sql
 UPDATE layoffs_staging2
@@ -59,9 +59,9 @@ MODIFY COLUMN `date` DATE;
 
 ```
 
-### 4. Gestione dei Valori Mancanti
+### 4. Handling Missing Values
 
-I valori vuoti (`''`) sono stati convertiti in `NULL`. Per i campi recuperabili (come il settore di Airbnb), è stato applicato un **Self JOIN** per copiare il dato da altre righe della stessa azienda.
+Blank values (`''`) were converted to `NULL`. For fields that could be populated (such as Airbnb's industry), a Self JOIN was applied to copy the data from other rows of the same company.
 
 ```sql
 UPDATE layoffs_staging2 l1
@@ -73,23 +73,23 @@ AND l2.industry IS NOT NULL;
 
 ```
 
-I record con valori nulli contemporanei sia in `total_laid_off` che in `percentage_laid_off` sono stati eliminati perché inutilizzabili per l'analisi.
+Records with concurrent null values in both `total_laid_off` and `percentage_laid_off` were deleted because they were unusable for analysis.
 
 ---
 
-## Funzioni SQL Utilizzate
+## SQL Functions Used
 
-| Strumento | Utilizzo |
+| Tool | Usage |
 | --- | --- |
-| `ROW_NUMBER() OVER()` | Assegnazione di un indice progressivo per gruppo di righe uguali |
-| `WITH ... AS` | Creazione di CTE (tabelle temporanee) per l'analisi dei duplicati |
-| `TRIM()` | Eliminazione degli spazi bianchi superflui |
-| `STR_TO_DATE()` | Conversione di stringhe di testo in date valide |
-| `ALTER TABLE` | Modifica strutturale dei tipi di dato e rimozione colonne |
-| `Self JOIN` | Associazione della tabella con se stessa per popolare i valori NULL |
+| `ROW_NUMBER() OVER()` | Assigns a progressive index for groups of identical rows |
+| `WITH ... AS` | Creates CTEs (temporary tables) for duplicate analysis |
+| `TRIM()` | Removes superfluous white spaces |
+| `STR_TO_DATE()` | Converts text strings into valid dates |
+| `ALTER TABLE` | Structural modification of data types and column removal |
+| `Self JOIN` | Joins the table with itself to populate NULL values |
 
 ---
 
 ## TL;DR
 
-Il progetto applica una pipeline di data cleaning in SQL su un dataset di licenziamenti globali. Tramite Window Functions, CTE e Self Join, i dati grezzi sono stati isolati, standardizzati nei formati (testi e date) e ripuliti da record duplicati o incompleti, il tutto operando su una tabella di staging per non intaccare la sorgente originale.
+This project applies an SQL data cleaning pipeline to a global layoffs dataset. Using Window Functions, CTEs, and Self Joins, raw data was isolated, standardized in format (text and dates), and cleaned of duplicate or incomplete records, all while operating on a staging table to preserve the original source.
